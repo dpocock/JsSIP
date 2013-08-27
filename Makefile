@@ -69,3 +69,9 @@ dist/JsSIP-$(VERSION).min.js:	src/Grammar/dist/Grammar.min.js tmp/JsSIP-$(VERSIO
 clean:
 	-rm -rf tmp dist
 
+srcdist:
+	-rm -rf jssip-$(VERSION)
+	mkdir jssip-$(VERSION)
+	cp -r AUTHORS.md BUILDING.md CHANGELOG.md Gruntfile.js LICENSE Makefile package.json README.md src test THANKS.md jssip-$(VERSION)
+	tar czf jssip-$(VERSION).tar.gz jssip-$(VERSION)
+
