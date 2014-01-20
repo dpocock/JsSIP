@@ -105,21 +105,19 @@ RTCMediaHandler.prototype = {
   * @param {Function} onSuccess Fired when there are no more ICE candidates
   */
   init: function(constraints) {
-    var idx, server, scheme, url,
+    var idx, length, server,
       self = this,
-      servers = [];
+      servers = [],
+      config = this.session.ua.configuration;
 
-    for (idx in this.session.ua.configuration.stun_servers) {
-      server = this.session.ua.configuration.stun_servers[idx];
-      servers.push({'url': server});
-    }
+    servers.push({'url': config.stun_servers});
 
-    for (idx in this.session.ua.configuration.turn_servers) {
-      server = this.session.ua.configuration.turn_servers[idx];
-      url = server.server;
-      scheme = url.substr(0, url.indexOf(':'));
+    length = config.turn_servers.length;
+    for (idx = 0; idx < length; idx++) {
+      server = config.turn_servers[idx];
       servers.push({
-        'url': scheme + ':' + server.username + '@' + url.substr(scheme.length+1),
+        'url': server.urls,
+        'username': server.username,
         'credential': server.password
       });
     }

@@ -68,7 +68,6 @@ UA = function(configuration) {
 
   this.configuration = {};
   this.dialogs = {};
-  this.registrator = null;
 
   //User actions outside any session/dialog (MESSAGE)
   this.applicants = {};
@@ -86,6 +85,7 @@ UA = function(configuration) {
   };
 
   this.transportRecoverAttempts = 0;
+  this.transportRecoveryTimer = null;
 
   /**
    * Load configuration
@@ -106,6 +106,9 @@ UA = function(configuration) {
     this.error = C.CONFIGURATION_ERROR;
     throw e;
   }
+  
+  // Initialize registrator
+  this.registrator = new JsSIP.Registrator(this);
 };
 UA.prototype = new JsSIP.EventEmitter();
 
@@ -139,7 +142,7 @@ UA.prototype.unregister = function(options) {
  * @param {Boolean}
  */
 UA.prototype.isRegistered = function() {
-  if(this.registrator && this.registrator.registered) {
+  if(this.registrator.registered) {
     return true;
   } else {
     return false;
@@ -206,12 +209,13 @@ UA.prototype.stop = function() {
     console.warn('UA already closed');
     return;
   }
+  
+  // Clear transportRecoveryTimer
+  window.clearTimeout(this.transportRecoveryTimer);
 
   // Close registrator
-  if(this.registrator) {
-    console.log(LOG_PREFIX +'closing registrator');
-    this.registrator.close();
-  }
+  console.log(LOG_PREFIX +'closing registrator');
+  this.registrator.close();
 
   // Run  _terminate_ on every Session
   for(session in this.sessions) {
@@ -291,13 +295,14 @@ UA.prototype.getCredentials = function(request) {
  */
 UA.prototype.onTransportClosed = function(transport) {
   // Run _onTransportError_ callback on every client transaction using _transport_
-  var type, idx,
+  var type, idx, length,
     client_transactions = ['nict', 'ict', 'nist', 'ist'];
 
   transport.server.status = JsSIP.Transport.C.STATUS_DISCONNECTED;
   console.log(LOG_PREFIX +'connection state set to '+ JsSIP.Transport.C.STATUS_DISCONNECTED);
 
-  for(type in client_transactions) {
+  length = client_transactions.length;
+  for (type = 0; type < length; type++) {
     for(idx in this.transactions[client_transactions[type]]) {
       this.transactions[client_transactions[type]][idx].onTransportError();
     }
@@ -373,14 +378,7 @@ UA.prototype.onTransportConnected = function(transport) {
   });
 
   if(this.configuration.register) {
-    if(this.registrator) {
-      this.registrator.onTransportConnected();
-    } else {
-      this.registrator = new JsSIP.Registrator(this, transport);
-      this.register();
-    }
-  } else if (!this.registrator) {
-    this.registrator = new JsSIP.Registrator(this, transport);
+    this.registrator.onTransportConnected();
   }
 };
 
@@ -563,10 +561,11 @@ UA.prototype.findDialog = function(request) {
  */
 UA.prototype.getNextWsServer = function() {
   // Order servers by weight
-  var idx, ws_server,
+  var idx, length, ws_server,
     candidates = [];
 
-  for (idx in this.configuration.ws_servers) {
+  length = this.configuration.ws_servers.length;
+  for (idx = 0; idx < length; idx++) {
     ws_server = this.configuration.ws_servers[idx];
 
     if (ws_server.status === JsSIP.Transport.C.STATUS_ERROR) {
@@ -597,18 +596,17 @@ UA.prototype.closeSessionsOnTransportError = function() {
     this.sessions[idx].onTransportError();
   }
   // Call registrator _onTransportClosed_
-  if(this.registrator){
-    this.registrator.onTransportClosed();
-  }
+  this.registrator.onTransportClosed();
 };
 
 UA.prototype.recoverTransport = function(ua) {
-  var idx, k, nextRetry, count, server;
+  var idx, length, k, nextRetry, count, server;
 
   ua = ua || this;
   count = ua.transportRecoverAttempts;
 
-  for (idx in ua.configuration.ws_servers) {
+  length = ua.configuration.ws_servers.length;
+  for (idx = 0; idx < length; idx++) {
     ua.configuration.ws_servers[idx].status = 0;
   }
 
@@ -625,7 +623,7 @@ UA.prototype.recoverTransport = function(ua) {
 
   console.log(LOG_PREFIX + 'next connection attempt in '+ nextRetry +' seconds');
 
-  window.setTimeout(
+  this.transportRecoveryTimer = window.setTimeout(
     function(){
       ua.transportRecoverAttempts = count + 1;
       new JsSIP.Transport(ua, server);
@@ -902,7 +900,7 @@ UA.configuration_check = {
     },
 
     ws_servers: function(ws_servers) {
-      var idx, url;
+      var idx, length, url;
 
       /* Allow defining ws_servers parameter as:
        *  String: "host"
@@ -913,7 +911,8 @@ UA.configuration_check = {
       if (typeof ws_servers === 'string') {
         ws_servers = [{ws_uri: ws_servers}];
       } else if (ws_servers instanceof Array) {
-        for(idx in ws_servers) {
+        length = ws_servers.length;
+        for (idx = 0; idx < length; idx++) {
           if (typeof ws_servers[idx] === 'string'){
             ws_servers[idx] = {ws_uri: ws_servers[idx]};
           }
@@ -926,7 +925,8 @@ UA.configuration_check = {
         return false;
       }
 
-      for (idx in ws_servers) {
+      length = ws_servers.length;
+      for (idx = 0; idx < length; idx++) {
         if (!ws_servers[idx].ws_uri) {
           console.error(LOG_PREFIX +'missing "ws_uri" attribute in ws_servers parameter');
           return;
@@ -1057,7 +1057,7 @@ UA.configuration_check = {
     },
 
     stun_servers: function(stun_servers) {
-      var idx, stun_server;
+      var idx, length, stun_server;
 
       if (typeof stun_servers === 'string') {
         stun_servers = [stun_servers];
@@ -1065,7 +1065,8 @@ UA.configuration_check = {
         return;
       }
 
-      for (idx in stun_servers) {
+      length = stun_servers.length;
+      for (idx = 0; idx < length; idx++) {
         stun_server = stun_servers[idx];
         if (!(/^stuns?:/.test(stun_server))) {
           stun_server = 'stun:' + stun_server;
@@ -1087,7 +1088,7 @@ UA.configuration_check = {
     },
 
     turn_servers: function(turn_servers) {
-      var idx, turn_server;
+      var idx, length, turn_server, url;
 
       if (turn_servers instanceof Array) {
         // Do nothing
@@ -1095,20 +1096,35 @@ UA.configuration_check = {
         turn_servers = [turn_servers];
       }
 
-      for (idx in turn_servers) {
+      length = turn_servers.length;
+      for (idx = 0; idx < length; idx++) {
         turn_server = turn_servers[idx];
-        if (!turn_server.server || !turn_server.username || !turn_server.password) {
-          return;
-        } else if (!(/^turns?:/.test(turn_server.server))) {
-          turn_server.server = 'turn:' + turn_server.server;
+        
+        // Backward compatibility:
+        //Allow defining the turn_server url with the 'server' property.
+        if (turn_server.server) {
+          turn_server.urls = [turn_server.server];
         }
+        
+        if (!turn_server.urls || !turn_server.username || !turn_server.password) {
+          return;
+        }
+        
+        if (!turn_server.urls instanceof Array) {
+          turn_server.urls = [turn_server.urls];
+        }
+        
+        length = turn_server.urls.length;
+        for (idx = 0; idx < length; idx++) {
+          url = turn_server.urls[idx];
+          
+          if (!(/^turns?:/.test(url))) {
+            url = 'turn:' + url;
+          }
 
-        if(JsSIP.Grammar.parse(turn_server.server, 'turn_URI') === -1) {
-          return;
-        } else if(JsSIP.Grammar.parse(turn_server.username, 'user') === -1) {
-          return;
-        } else if(JsSIP.Grammar.parse(turn_server.password, 'password') === -1) {
-          return;
+          if(JsSIP.Grammar.parse(url, 'turn_URI') === -1) {
+            return;
+          }
         }
       }
       return turn_servers;
