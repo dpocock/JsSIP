@@ -48,12 +48,15 @@ src/Grammar/dist/Grammar.min.js:	src/Grammar/dist/Grammar.js
 tmp/JsSIP-$(VERSION).js.part:	$(SOURCES)
 	mkdir -p tmp
 	cat $(SOURCES) \
-	   | sed -e '/^var RequestSender.*= /r src/RTCSession/RequestSender.js' \
+	   | sed -e '/^var Request .*= /r src/RTCSession/Request.js' \
+	   | sed -e '/^var RequestSender.*= /r src/Dialog/RequestSender.js' \
 	   | sed -e '/^var RTCMediaHandler.*= /r src/RTCSession/RTCMediaHandler.js' \
 	   | sed -e '/^var DTMF.*= /r src/RTCSession/DTMF.js' \
+	   | sed -e '/^var Logger = /r src/Logger.js' \
 	   | sed -e 's/@@include.*$$//' \
-	   | sed -e '$$a\\window.JsSIP = JsSIP;\n}(window));' \
 	   > tmp/JsSIP-$(VERSION).js.part
+#	   | sed -e '$$a\\window.JsSIP = JsSIP;\n}(window));' \
+#	   > tmp/JsSIP-$(VERSION).js.part
 
 dist/JsSIP-$(VERSION).js:	src/Grammar/dist/Grammar.js tmp/JsSIP-$(VERSION).js.part
 	mkdir -p dist
