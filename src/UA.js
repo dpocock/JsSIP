@@ -831,12 +831,13 @@ UA.prototype.loadConfig = function(configuration) {
     if(configuration.hasOwnProperty(parameter)) {
       value = configuration[parameter];
 
-      // If the parameter value is null, empty string, undefined or empty array then apply its default value.
-      if(value === null || value === "" || value === undefined || (value instanceof Array && value.length === 0)) { continue; }
-      // If it's a number with NaN value then also apply its default value.
-      // NOTE: JS does not allow "value === NaN", the following does the work:
-      else if(typeof(value) === 'number' && window.isNaN(value)) { continue; }
-
+      /* If the parameter value is null, empty string, undefined, empty array
+       * or it's a number with NaN value, then apply its default value.
+       */
+      if (JsSIP.Utils.isEmpty(value)) {
+        continue; 
+      }
+      
       checked_value = UA.configuration_check.optional[parameter](value);
       if (checked_value !== undefined) {
         settings[parameter] = checked_value;
@@ -894,6 +895,12 @@ UA.prototype.loadConfig = function(configuration) {
   if (settings.hack_ip_in_contact) {
     settings.via_host = JsSIP.Utils.getRandomTestNetIP();
   }
+  
+  // Set empty Stun Server Set if explicitly passed an empty Array
+  value = configuration.stun_servers;
+  if (value instanceof Array && value.length === 0) {
+    settings.stun_servers = [];
+  }
 
   this.contact = {
     pub_gruu: null,
@@ -913,7 +920,7 @@ UA.prototype.loadConfig = function(configuration) {
         contact += this.pub_gruu || this.uri.toString();
       }
 
-      if (outbound) {
+      if (outbound && (anonymous ? !this.temp_gruu : !this.pub_gruu)) {
         contact += ';ob';
       }
 
@@ -1237,7 +1244,7 @@ UA.configuration_check = {
     },
 
     turn_servers: function(turn_servers) {
-      var idx, length, turn_server, url;
+      var idx, idx2, length, length2, turn_server, url;
 
       if (turn_servers instanceof Array) {
         // Do nothing
@@ -1269,9 +1276,9 @@ UA.configuration_check = {
           turn_server.urls = [turn_server.urls];
         }
 
-        length = turn_server.urls.length;
-        for (idx = 0; idx < length; idx++) {
-          url = turn_server.urls[idx];
+        length2 = turn_server.urls.length;
+        for (idx2 = 0; idx2 < length2; idx2++) {
+          url = turn_server.urls[idx2];
 
           if (!(/^turns?:/.test(url))) {
             url = 'turn:' + url;
