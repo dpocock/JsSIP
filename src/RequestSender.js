@@ -1,19 +1,17 @@
+module.exports = RequestSender;
+
 
 /**
- * @fileoverview Request Sender
+ * Dependencies.
  */
+var JsSIP_C = require('./Constants');
+var UA = require('./UA');
+var DigestAuthentication = require('./DigestAuthentication');
+var Transactions = require('./Transactions');
 
-/**
- * @augments JsSIP
- * @class Class creating a request sender.
- * @param {Object} applicant
- * @param {JsSIP.UA} ua
- */
-(function(JsSIP) {
-var RequestSender,
-  LOG_PREFIX = JsSIP.name +' | '+ 'REQUEST SENDER' +' | ';
 
-RequestSender = function(applicant, ua) {
+function RequestSender(applicant, ua) {
+  this.logger = ua.getLogger('jssip.requestsender');
   this.ua = ua;
   this.applicant = applicant;
   this.method = applicant.request.method;
@@ -23,10 +21,11 @@ RequestSender = function(applicant, ua) {
   this.staled = false;
 
   // If ua is in closing process or even closed just allow sending Bye and ACK
-  if (ua.status === JsSIP.UA.C.STATUS_USER_CLOSED && (this.method !== JsSIP.C.BYE || this.method !== JsSIP.C.ACK)) {
+  if (ua.status === UA.C.STATUS_USER_CLOSED && (this.method !== JsSIP_C.BYE || this.method !== JsSIP_C.ACK)) {
     this.onTransportError();
   }
-};
+}
+
 
 /**
 * Create the client transaction and send the message.
@@ -35,13 +34,13 @@ RequestSender.prototype = {
   send: function() {
     switch(this.method) {
       case "INVITE":
-        this.clientTransaction = new JsSIP.Transactions.InviteClientTransaction(this, this.request, this.ua.transport);
+        this.clientTransaction = new Transactions.InviteClientTransaction(this, this.request, this.ua.transport);
         break;
       case "ACK":
-        this.clientTransaction = new JsSIP.Transactions.AckClientTransaction(this, this.request, this.ua.transport);
+        this.clientTransaction = new Transactions.AckClientTransaction(this, this.request, this.ua.transport);
         break;
       default:
-        this.clientTransaction = new JsSIP.Transactions.NonInviteClientTransaction(this, this.request, this.ua.transport);
+        this.clientTransaction = new Transactions.NonInviteClientTransaction(this, this.request, this.ua.transport);
     }
     this.clientTransaction.send();
   },
@@ -49,7 +48,6 @@ RequestSender.prototype = {
   /**
   * Callback fired when receiving a request timeout error from the client transaction.
   * To be re-defined by the applicant.
-  * @event
   */
   onRequestTimeout: function() {
     this.applicant.onRequestTimeout();
@@ -58,7 +56,6 @@ RequestSender.prototype = {
   /**
   * Callback fired when receiving a transport error from the client transaction.
   * To be re-defined by the applicant.
-  * @event
   */
   onTransportError: function() {
     this.applicant.onTransportError();
@@ -67,7 +64,6 @@ RequestSender.prototype = {
   /**
   * Called from client transaction when receiving a correct response to the request.
   * Authenticate request if needed or pass the response back to the applicant.
-  * @param {JsSIP.IncomingResponse} response
   */
   receiveResponse: function(response) {
     var cseq, challenge, authorization_header_name,
@@ -90,14 +86,14 @@ RequestSender.prototype = {
 
       // Verify it seems a valid challenge.
       if (! challenge) {
-        console.warn(LOG_PREFIX + response.status_code + ' with wrong or missing challenge, cannot authenticate');
+        this.logger.warn(response.status_code + ' with wrong or missing challenge, cannot authenticate');
         this.applicant.receiveResponse(response);
         return;
       }
 
       if (!this.challenged || (!this.staled && challenge.stale === true)) {
         if (!this.credentials) {
-          this.credentials = new JsSIP.DigestAuthentication(this.ua);
+          this.credentials = new DigestAuthentication(this.ua);
         }
 
         // Verify that the challenge is really valid.
@@ -111,7 +107,7 @@ RequestSender.prototype = {
           this.staled = true;
         }
 
-        if (response.method === JsSIP.C.REGISTER) {
+        if (response.method === JsSIP_C.REGISTER) {
           cseq = this.applicant.cseq += 1;
         } else if (this.request.dialog){
           cseq = this.request.dialog.local_seqnum += 1;
@@ -131,6 +127,3 @@ RequestSender.prototype = {
     }
   }
 };
-
-JsSIP.RequestSender = RequestSender;
-}(JsSIP));

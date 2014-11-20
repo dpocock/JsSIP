@@ -1,24 +1,18 @@
-/**
- * @fileoverview JsSIP NameAddrHeader
- */
+module.exports = NameAddrHeader;
+
 
 /**
- * @augments JsSIP
- * @class Class creating a Name Address SIP header.
- *
- * @param {JsSIP.URI} uri
- * @param {String} [display_name]
- * @param {Object} [parameters]
- *
+ * Dependencies.
  */
-(function(JsSIP) {
-var NameAddrHeader;
+var URI = require('./URI');
+var Grammar = require('./Grammar');
 
-NameAddrHeader = function(uri, display_name, parameters) {
+
+function NameAddrHeader(uri, display_name, parameters) {
   var param;
 
   // Checks
-  if(!uri || !(uri instanceof JsSIP.URI)) {
+  if(!uri || !(uri instanceof URI)) {
     throw new TypeError('missing or invalid "uri" parameter');
   }
 
@@ -38,7 +32,8 @@ NameAddrHeader = function(uri, display_name, parameters) {
       }
     }
   });
-};
+}
+
 NameAddrHeader.prototype = {
   setParam: function(key, value) {
     if (key) {
@@ -76,7 +71,7 @@ NameAddrHeader.prototype = {
     return new NameAddrHeader(
       this.uri.clone(),
       this.display_name,
-      window.JSON.parse(window.JSON.stringify(this.parameters)));
+      JSON.parse(JSON.stringify(this.parameters)));
   },
 
   toString: function() {
@@ -99,13 +94,11 @@ NameAddrHeader.prototype = {
 
 
 /**
-  * Parse the given string and returns a JsSIP.NameAddrHeader instance or undefined if
+  * Parse the given string and returns a NameAddrHeader instance or undefined if
   * it is an invalid NameAddrHeader.
-  * @public
-  * @param {String} name_addr_header
   */
 NameAddrHeader.parse = function(name_addr_header) {
-  name_addr_header = JsSIP.Grammar.parse(name_addr_header,'Name_Addr_Header');
+  name_addr_header = Grammar.parse(name_addr_header,'Name_Addr_Header');
 
   if (name_addr_header !== -1) {
     return name_addr_header;
@@ -113,6 +106,3 @@ NameAddrHeader.parse = function(name_addr_header) {
     return undefined;
   }
 };
-
-JsSIP.NameAddrHeader = NameAddrHeader;
-}(JsSIP));
