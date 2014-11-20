@@ -1,24 +1,39 @@
-/*global console: false*/
-
 /**
- * @name JsSIP
- * @namespace
+ * The main namespace.
+ * @namespace JsSIP
  */
-(function(window) {
 
-var JsSIP = (function() {
-  "use strict";
+var JsSIP = {
+  C: require('./Constants'),
+  Exceptions: require('./Exceptions'),
+  Utils: require('./Utils'),
+  UA: require('./UA'),
+  URI: require('./URI'),
+  NameAddrHeader: require('./NameAddrHeader'),
+  Grammar: require('./Grammar')
+};
 
-  var JsSIP = {};
+module.exports = JsSIP;
 
-  Object.defineProperties(JsSIP, {
-    version: {
-      get: function(){ return '<%= pkg.version %>'; }
-    },
-    name: {
-      get: function(){ return '<%= pkg.title %>'; }
-    }
-  });
 
-  return JsSIP;
-}());
+var pkg = require('../package.json');
+
+
+Object.defineProperties(JsSIP, {
+  name: {
+    get: function(){ return pkg.title; }
+  },
+
+  /**
+   * Retrieve the version of JsSIP.
+   * @memberof JsSIP
+   * @method
+   * @returns {String} Version in the form "X.Y.Z"
+   * @example
+   * // prints "1.0.0"
+   * console.log(JsSIP.version)
+   */
+  version: {
+    get: function(){ return pkg.version; }
+  }
+});

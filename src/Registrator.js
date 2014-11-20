@@ -1,19 +1,19 @@
-/**
- * @fileoverview Registrator Agent
- */
+module.exports = Registrator;
+
 
 /**
- * @augments JsSIP
- * @class Class creating a registrator agent.
- * @param {JsSIP.UA} ua
- * @param {JsSIP.Transport} transport
+ * Dependecies
  */
-(function(JsSIP) {
-var Registrator,
-  LOG_PREFIX = JsSIP.name +' | '+ 'REGISTRATOR' +' | ';
+var Utils = require('./Utils');
+var JsSIP_C = require('./Constants');
+var SIPMessage = require('./SIPMessage');
+var RequestSender = require('./RequestSender');
 
-Registrator = function(ua, transport) {
+
+function Registrator(ua, transport) {
   var reg_id=1; //Force reg_id to 1.
+
+  this.logger = ua.getLogger('jssip.registrator');
 
   this.ua = ua;
   this.transport = transport;
@@ -22,8 +22,8 @@ Registrator = function(ua, transport) {
   this.expires = ua.configuration.register_expires;
 
   // Call-ID and CSeq values RFC3261 10.2
-  this.call_id = JsSIP.Utils.createRandomToken(22);
-  this.cseq = 80;
+  this.call_id = Utils.createRandomToken(22);
+  this.cseq = 0;
 
   // this.to_uri
   this.to_uri = ua.configuration.uri;
@@ -31,47 +31,72 @@ Registrator = function(ua, transport) {
   this.registrationTimer = null;
 
   // Set status
-  this.registered = this.registered_before = false;
-
-  // Save into ua instance
-  this.ua.registrator = this;
+  this.registered = false;
 
   // Contact header
   this.contact = this.ua.contact.toString();
+
+  // sip.ice media feature tag (RFC 5768)
+  this.contact += ';+sip.ice';
+
+  // Custom headers for REGISTER and un-REGISTER.
+  this.extraHeaders = [];
+
+  // Custom Contact header params for REGISTER and un-REGISTER.
+  this.extraContactParams = "";
 
   if(reg_id) {
     this.contact += ';reg-id='+ reg_id;
     this.contact += ';+sip.instance="<urn:uuid:'+ this.ua.configuration.instance_id+'>"';
   }
-};
+}
+
 
 Registrator.prototype = {
-  /**
-   * @param {Object} [options]
-   */
-  register: function(options) {
+  setExtraHeaders: function(extraHeaders) {
+    if (! extraHeaders instanceof Array) {
+      extraHeaders = [];
+    }
+
+    this.extraHeaders = extraHeaders.slice();
+  },
+
+  setExtraContactParams: function(extraContactParams) {
+    if (! extraContactParams instanceof Object) {
+      extraContactParams = {};
+    }
+
+    // Reset it.
+    this.extraContactParams = "";
+
+    for(var param_key in extraContactParams) {
+      var param_value = extraContactParams[param_key];
+      this.extraContactParams += (";" + param_key);
+      if (param_value) {
+        this.extraContactParams += ("=" + param_value);
+      }
+    }
+  },
+
+  register: function() {
     var request_sender, cause, extraHeaders,
       self = this;
 
-    options = options || {};
-    extraHeaders = options.extraHeaders || [];
-    extraHeaders.push('Contact: '+ this.contact + ';expires=' + this.expires);
-    extraHeaders.push('Allow: '+ JsSIP.Utils.getAllowedMethods(this.ua));
+    extraHeaders = this.extraHeaders.slice();
+    extraHeaders.push('Contact: ' + this.contact + ';expires=' + this.expires + this.extraContactParams);
+    extraHeaders.push('Expires: '+ this.expires);
 
-    this.request = new JsSIP.OutgoingRequest(JsSIP.C.REGISTER, this.registrar, this.ua, {
+    this.request = new SIPMessage.OutgoingRequest(JsSIP_C.REGISTER, this.registrar, this.ua, {
         'to_uri': this.to_uri,
         'call_id': this.call_id,
         'cseq': (this.cseq += 1)
       }, extraHeaders);
 
-    request_sender = new JsSIP.RequestSender(this, this.ua);
+    request_sender = new RequestSender(this, this.ua);
 
-    /**
-    * @private
-    */
     this.receiveResponse = function(response) {
       var contact, expires,
-        contacts = response.countHeader('contact');
+        contacts = response.getHeaders('contact').length;
 
       // Discard responses to older REGISTER/un-REGISTER requests.
       if(response.cseq !== this.cseq) {
@@ -80,7 +105,7 @@ Registrator.prototype = {
 
       // Clear registration timer
       if (this.registrationTimer !== null) {
-        window.clearTimeout(this.registrationTimer);
+        clearTimeout(this.registrationTimer);
         this.registrationTimer = null;
       }
 
@@ -95,7 +120,7 @@ Registrator.prototype = {
 
           // Search the Contact pointing to us and update the expires value accordingly.
           if (!contacts) {
-            console.warn(LOG_PREFIX +'no Contact header in response to REGISTER, response ignored');
+            this.logger.warn('no Contact header in response to REGISTER, response ignored');
             break;
           }
 
@@ -110,7 +135,7 @@ Registrator.prototype = {
           }
 
           if (!contact) {
-            console.warn(LOG_PREFIX +'no Contact header pointing to us, response ignored');
+            this.logger.warn('no Contact header pointing to us, response ignored');
             break;
           }
 
@@ -120,7 +145,7 @@ Registrator.prototype = {
 
           // Re-Register before the expiration interval has elapsed.
           // For that, decrease the expires value. ie: 3 seconds
-          this.registrationTimer = window.setTimeout(function() {
+          this.registrationTimer = setTimeout(function() {
             self.registrationTimer = null;
             self.register();
           }, (expires * 1000) - 3000);
@@ -133,92 +158,84 @@ Registrator.prototype = {
             this.ua.contact.pub_gruu = contact.getParam('pub-gruu').replace(/"/g,'');
           }
 
-          this.registered = true;
-          this.ua.emit('registered', this.ua, {
-            response: response
-          });
+          if (! this.registered) {
+            this.registered = true;
+            this.ua.emit('registered', this.ua, {
+              response: response
+            });
+          }
           break;
         // Interval too brief RFC3261 10.2.8
         case /^423$/.test(response.status_code):
           if(response.hasHeader('min-expires')) {
             // Increase our registration interval to the suggested minimum
             this.expires = response.getHeader('min-expires');
-            // Attempt the registration again immediately 
+            // Attempt the registration again immediately
             this.register();
           } else { //This response MUST contain a Min-Expires header field
-            console.warn(LOG_PREFIX +'423 response received for REGISTER without Min-Expires');
-            this.registrationFailure(response, JsSIP.C.causes.SIP_FAILURE_CODE);
+            this.logger.warn('423 response received for REGISTER without Min-Expires');
+            this.registrationFailure(response, JsSIP_C.causes.SIP_FAILURE_CODE);
           }
           break;
         default:
-          cause = JsSIP.Utils.sipErrorCause(response.status_code);
+          cause = Utils.sipErrorCause(response.status_code);
           this.registrationFailure(response, cause);
       }
     };
 
-    /**
-    * @private
-    */
     this.onRequestTimeout = function() {
-      this.registrationFailure(null, JsSIP.C.causes.REQUEST_TIMEOUT);
+      this.registrationFailure(null, JsSIP_C.causes.REQUEST_TIMEOUT);
     };
 
-    /**
-    * @private
-    */
     this.onTransportError = function() {
-      this.registrationFailure(null, JsSIP.C.causes.CONNECTION_ERROR);
+      this.registrationFailure(null, JsSIP_C.causes.CONNECTION_ERROR);
     };
 
     request_sender.send();
   },
 
-  /**
-  * @param {Object} [options]
-  */
   unregister: function(options) {
     var extraHeaders;
 
     if(!this.registered) {
-      console.warn(LOG_PREFIX +'already unregistered');
+      this.logger.debug('already unregistered');
       return;
     }
 
     options = options || {};
-    extraHeaders = options.extraHeaders || [];
 
     this.registered = false;
 
     // Clear the registration timer.
     if (this.registrationTimer !== null) {
-      window.clearTimeout(this.registrationTimer);
+      clearTimeout(this.registrationTimer);
       this.registrationTimer = null;
     }
 
+    extraHeaders = this.extraHeaders.slice();
+
     if(options.all) {
-      extraHeaders.push('Contact: *');
+      extraHeaders.push('Contact: *' + this.extraContactParams);
       extraHeaders.push('Expires: 0');
 
-      this.request = new JsSIP.OutgoingRequest(JsSIP.C.REGISTER, this.registrar, this.ua, {
+      this.request = new SIPMessage.OutgoingRequest(JsSIP_C.REGISTER, this.registrar, this.ua, {
           'to_uri': this.to_uri,
           'call_id': this.call_id,
           'cseq': (this.cseq += 1)
         }, extraHeaders);
     } else {
-      extraHeaders.push('Contact: '+ this.contact + ';expires=0');
+      extraHeaders.push('Contact: '+ this.contact + ';expires=0' + this.extraContactParams);
+      extraHeaders.push('Expires: 0');
 
-      this.request = new JsSIP.OutgoingRequest(JsSIP.C.REGISTER, this.registrar, this.ua, {
+      this.request = new SIPMessage.OutgoingRequest(JsSIP_C.REGISTER, this.registrar, this.ua, {
           'to_uri': this.to_uri,
           'call_id': this.call_id,
           'cseq': (this.cseq += 1)
         }, extraHeaders);
     }
 
-    var request_sender = new JsSIP.RequestSender(this, this.ua);
+    var request_sender = new RequestSender(this, this.ua);
 
-    /**
-    * @private
-    */
     this.receiveResponse = function(response) {
       var cause;
 
@@ -230,31 +247,22 @@ Registrator.prototype = {
           this.unregistered(response);
           break;
         default:
-          cause = JsSIP.Utils.sipErrorCause(response.status_code);
+          cause = Utils.sipErrorCause(response.status_code);
           this.unregistered(response, cause);
       }
     };
 
-    /**
-    * @private
-    */
     this.onRequestTimeout = function() {
-      this.unregistered(null, JsSIP.C.causes.REQUEST_TIMEOUT);
+      this.unregistered(null, JsSIP_C.causes.REQUEST_TIMEOUT);
     };
 
-    /**
-    * @private
-    */
     this.onTransportError = function() {
-      this.unregistered(null, JsSIP.C.causes.CONNECTION_ERROR);
+      this.unregistered(null, JsSIP_C.causes.CONNECTION_ERROR);
     };
 
     request_sender.send();
   },
 
-  /**
-  * @private
-  */
   registrationFailure: function(response, cause) {
     this.ua.emit('registrationFailed', this.ua, {
       response: response || null,
@@ -270,9 +278,6 @@ Registrator.prototype = {
     }
   },
 
-  /**
-   * @private
-   */
   unregistered: function(response, cause) {
     this.registered = false;
     this.ua.emit('unregistered', this.ua, {
@@ -281,13 +286,9 @@ Registrator.prototype = {
     });
   },
 
-  /**
-  * @private
-  */
   onTransportClosed: function() {
-    this.registered_before = this.registered;
     if (this.registrationTimer !== null) {
-      window.clearTimeout(this.registrationTimer);
+      clearTimeout(this.registrationTimer);
       this.registrationTimer = null;
     }
 
@@ -297,21 +298,10 @@ Registrator.prototype = {
     }
   },
 
-  /**
-  * @private
-  */
-  onTransportConnected: function() {
-    this.register();
-  },
-
-  /**
-  * @private
-  */
   close: function() {
-    this.registered_before = this.registered;
-    this.unregister();
+    if (this.registered) {
+      this.unregister();
+    }
   }
 };
 
-JsSIP.Registrator = Registrator;
-}(JsSIP));
