@@ -20,7 +20,7 @@ MINIFY_GCC ?= closure-compiler
 VERSION = $(shell cat package.json | grep version.: | cut -f4 -d'"')
 
 # Sources
-SOURCES = $(shell cat Gruntfile.js | grep 'src/.*js' | grep -v Grammar | tr -d " ',")
+SOURCES = $(shell find src -type f -name '*.js' | grep -v Grammar.js)
 
 
 all:	normal minified
@@ -34,12 +34,12 @@ minified:	dist/JsSIP-$(VERSION).min.js
 # Compile and minify the SIP grammar
 #
 
-src/Grammar/dist/Grammar.js:	src/Grammar/src/Grammar.pegjs
-	$(PEGJS) -e JsSIP.Grammar src/Grammar/src/Grammar.pegjs src/Grammar/dist/Grammar.js
-	perl -0777 -pi -e 's/throw new this\.SyntaxError\(([\s\S]*?)\);([\s\S]*?)}([\s\S]*?)return result;/new this.SyntaxError(\1);\n        return -1;\2}\3return data;/' src/Grammar/dist/Grammar.js
+src/Grammar.js:	src/Grammar.pegjs
+	$(PEGJS) -e JsSIP.Grammar src/Grammar.pegjs src/Grammar.js
+	perl -0777 -pi -e 's/throw new this\.SyntaxError\(([\s\S]*?)\);([\s\S]*?)}([\s\S]*?)return result;/new this.SyntaxError(\1);\n        return -1;\2}\3return data;/' src/Grammar.js
 
-src/Grammar/dist/Grammar.min.js:	src/Grammar/dist/Grammar.js
-	$(MINIFY_GCC) --js src/Grammar/dist/Grammar.js --js_output_file src/Grammar/dist/Grammar.min.js
+src/Grammar.min.js:	src/Grammar.js
+	$(MINIFY_GCC) --js src/Grammar.js --js_output_file src/Grammar.min.js
 
 #
 # Do the concate and replacement stuff
@@ -55,15 +55,15 @@ tmp/JsSIP-$(VERSION).js.part:	$(SOURCES)
 	   | sed -e '$$a\\window.JsSIP = JsSIP;\n}(window));' \
 	   > tmp/JsSIP-$(VERSION).js.part
 
-dist/JsSIP-$(VERSION).js:	src/Grammar/dist/Grammar.js tmp/JsSIP-$(VERSION).js.part
+dist/JsSIP-$(VERSION).js:	src/Grammar.js tmp/JsSIP-$(VERSION).js.part
 	mkdir -p dist
-	cat tmp/JsSIP-$(VERSION).js.part src/Grammar/dist/Grammar.js\
+	cat tmp/JsSIP-$(VERSION).js.part src/Grammar.js\
 	   > dist/JsSIP-$(VERSION).js
 
-dist/JsSIP-$(VERSION).min.js:	src/Grammar/dist/Grammar.min.js tmp/JsSIP-$(VERSION).js.part
+dist/JsSIP-$(VERSION).min.js:	src/Grammar.min.js tmp/JsSIP-$(VERSION).js.part
 	mkdir -p dist
 	$(UGLIFY) tmp/JsSIP-$(VERSION).js.part > tmp/JsSIP-$(VERSION).min.js.part
-	cat tmp/JsSIP-$(VERSION).min.js.part src/Grammar/dist/Grammar.min.js \
+	cat tmp/JsSIP-$(VERSION).min.js.part src/Grammar.min.js \
 	    > dist/JsSIP-$(VERSION).min.js
 
 clean:
