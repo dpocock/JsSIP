@@ -1,0 +1,41 @@
+jssip (0.4.0.20140212.1-3) unstable; urgency=medium
+
+  * Build-depend on pegjs rather than node-peg.
+
+ -- Daniel Pocock <daniel@pocock.pro>  Thu, 11 Sep 2014 14:33:37 +0200
+
+jssip (0.4.0.20140212.1-2) unstable; urgency=high
+
+  * Use closure-compiler as a binary.
+
+ -- Daniel Pocock <daniel@pocock.com.au>  Sat, 31 May 2014 16:44:59 +0200
+
+jssip (0.4.0.20140212.1-1) unstable; urgency=low
+
+  * New upstream snapshot
+
+ -- Daniel Pocock <daniel@pocock.com.au>  Wed, 12 Feb 2014 15:58:38 +0100
+
+jssip (0.4.0.20140122.1-1) unstable; urgency=low
+
+  * New upstream snapshot
+
+ -- Daniel Pocock <daniel@pocock.com.au>  Wed, 22 Jan 2014 17:02:32 +0100
+
+jssip (0.4.0.20140120.1-1) unstable; urgency=low
+
+  * Add pegjs to build dependencies
+
+ -- Daniel Pocock <daniel@pocock.com.au>  Mon, 20 Jan 2014 14:46:45 +0100
+
+jssip (0.3.7-2) unstable; urgency=low
+
+  * Add pegjs to build dependencies
+
+ -- Daniel Pocock <daniel@pocock.com.au>  Mon, 16 Sep 2013 09:59:36 +0200
+
+jssip (0.3.7-1) unstable; urgency=low
+
+  * Initial upload (Closes: #721077)
+
+ -- Daniel Pocock <daniel@pocock.com.au>  Tue, 27 Aug 2013 19:43:05 +0200
