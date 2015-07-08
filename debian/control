@@ -3,13 +3,25 @@ Section: web
 Priority: optional
 Maintainer: Debian Javascript Maintainers <pkg-javascript-devel@lists.alioth.debian.org>
 Uploaders: Daniel Pocock <daniel@pocock.pro>
-Build-Depends: debhelper (>= 9.0.0), node-uglify, closure-compiler, pegjs
-Standards-Version: 3.9.4
+Build-Depends: debhelper (>= 9.0.0), node-uglify, closure-compiler, pegjs, node-browserify-lite, node-websocket, node-rtcninja, node-util, node-sdp-transform, node-events, node-debug
+Standards-Version: 3.9.6
 Homepage: http://www.jssip.net
-Vcs-Browser: http://anonscm.debian.org/cgit/pkg-javascript/jssip.git
-Vcs-Git: git://anonscm.debian.org/pkg-javascript/jssip.git
+Vcs-Browser: https://github.com/dpocock/JsSIP
+Vcs-Git: https://github.com/dpocock/JsSIP
 
 Package: libjs-jssip
+Architecture: all
+Depends: ${misc:Depends}, libjs-websocket, libjs-rtcninja, libjs-util, libjs-sdp-transform, libjs-events, libjs-debug
+Recommends: javascript-common
+Description: JavaScript implementation of a WebRTC SIP video phone
+ JsSIP is a client side pure JavaScript library to build SIP endpoints
+ in Web environments.  It is typically hosted in any normal web server
+ and runs in modern WebRTC capable browsers.
+ .
+ This package provides the JavaScript library for use in web sites
+ or for other packages that require it.
+
+Package: libjs-jssip-bundle
 Architecture: all
 Depends: ${misc:Depends}
 Recommends: javascript-common
@@ -20,4 +32,17 @@ Description: JavaScript implementation of a WebRTC SIP video phone
  .
  This package provides the JavaScript library for use in web sites
  or for other packages that require it.
+ .
+ This package provides a minified JavaScript produced with browserify-lite.
+
+Package: node-jssip
+Architecture: all
+Depends: ${misc:Depends}, node-websocket, node-rtcninja, node-util, node-sdp-transform, node-events, node-debug, libjs-jssip (= ${binary:Version})
+Recommends: javascript-common
+Description: JavaScript implementation of a WebRTC SIP video phone
+ JsSIP is a client side pure JavaScript library to build SIP endpoints
+ in Web environments.  It is typically hosted in any normal web server
+ and runs in modern WebRTC capable browsers.
+ .
+ This package provides the JavaScript library for use in NodeJS applictions.
 

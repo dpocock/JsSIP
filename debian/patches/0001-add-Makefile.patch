@@ -1,0 +1,56 @@
+diff --git a/Makefile b/Makefile
+new file mode 100644
+index 0000000..d38d49b
+--- /dev/null
++++ b/Makefile
+@@ -0,0 +1,50 @@
++#!/usr/bin/make -f
++##################### configurable stuff ###################################
++#
++# Tools we require
++#
++# UglifyJS
++UGLIFY ?= uglifyjs
++#
++# PEG.js
++PEGJS ?= pegjs
++#
++# Google Closure Compiler (minify)
++MINIFY_GCC ?= closure-compiler
++# hack for Debian bug 705565:
++#MINIFY_GCC ?= java -classpath /usr/share/java/closure-compiler.jar:/usr/share/java/args4j.jar:/usr/share/java/guava.jar:/usr/share/java/json.jar com.google.javascript.jscomp.CommandLineRunner
++
++#############################################################################
++#
++# Version we are building
++VERSION = $(shell python -c 'import json ; print json.load(open("package.json"))["version"]')
++
++# Sources
++SOURCES = $(shell find lib/ -name '*.js') lib/Grammar.js
++
++
++all:	normal minified
++	@echo JsSIP version = $(VERSION)
++
++normal:	dist/jssip.js
++
++minified:	dist/jssip.min.js
++
++#
++# Compile and minify the SIP grammar
++#
++
++lib/Grammar.js:	lib/Grammar.pegjs
++	$(PEGJS) -e module.exports lib/Grammar.pegjs lib/Grammar.js
++	perl -0777 -pi -e 's/throw new this\.SyntaxError\(([\s\S]*?)\);([\s\S]*?)}([\s\S]*?)return result;/new this.SyntaxError(\1);\n        return -1;\2}\3return data;/' lib/Grammar.js
++
++dist/jssip.js:	$(SOURCES)
++	mkdir -p dist
++	NODE_PATH=/usr/lib/nodejs browserify-lite ./lib/JsSIP.js --outfile dist/jssip.js
++
++dist/jssip.min.js:	dist/jssip.js
++	$(UGLIFY) dist/jssip.js > dist/jssip.min.js
++
++clean:
++	-rm -rf tmp dist
++

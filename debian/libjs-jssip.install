@@ -1,1 +1,3 @@
-dist/*.js /usr/share/javascript/jssip/
+lib/*.js usr/share/javascript/jssip
+lib/Dialog/*.js usr/share/javascript/jssip/Dialog
+lib/RTCSession/*.js usr/share/javascript/jssip/RTCSession

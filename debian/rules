@@ -10,9 +10,9 @@ override_dh_auto_build:
 	# closure-compiler due to Debian bug 705565:
 	#make MINIFY_GCC="java -classpath /usr/share/java/closure-compiler.jar:/usr/share/java/args4j.jar:/usr/share/java/guava.jar:/usr/share/java/json.jar com.google.javascript.jscomp.CommandLineRunner"
 	# using closure-compiler as a binary (after bug 705565 is fixed):
-	make MINIFY_GCC=closure-compiler
-	mv dist/jssip-*.min.js dist/jssip.min.js
-	mv dist/jssip-*.js dist/jssip.js
+	make MINIFY_GCC=closure-compiler dist/jssip.min.js
+	#mv dist/jssip-*.min.js dist/jssip.min.js
+	#mv dist/jssip-*.js dist/jssip.js
 
 # no make install support
 override_dh_auto_install:
