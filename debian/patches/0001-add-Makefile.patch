@@ -46,7 +46,7 @@ index 0000000..d38d49b
 +
 +dist/jssip.js:	$(SOURCES)
 +	mkdir -p dist
-+	NODE_PATH=/usr/lib/nodejs browserify-lite ./lib/JsSIP.js --outfile dist/jssip.js
++	NODE_PATH=/usr/lib/nodejs browserify-lite ./lib/JsSIP.js --standalone JsSIP --outfile dist/jssip.js
 +
 +dist/jssip.min.js:	dist/jssip.js
 +	$(UGLIFY) dist/jssip.js > dist/jssip.min.js
