@@ -11,7 +11,7 @@ Vcs-Git: https://github.com/dpocock/JsSIP
 
 Package: libjs-jssip
 Architecture: all
-Depends: ${misc:Depends}, libjs-websocket, libjs-rtcninja, libjs-util, libjs-sdp-transform, libjs-events, libjs-debug
+Depends: ${misc:Depends}, libjs-websocket, libjs-rtcninja, libjs-util, libjs-sdp-transform, libjs-events
 Recommends: javascript-common
 Description: JavaScript implementation of a WebRTC SIP video phone
  JsSIP is a client side pure JavaScript library to build SIP endpoints
